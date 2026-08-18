@@ -29,7 +29,7 @@
 - 编号自动递增：新博客编号 = 最大编号 + 1，从 1 开始，删除后不复用。
 - 列表按 createdAt 倒序；同一创建时间按编号倒序（最新在前）。
 - 布局：左侧博客列表（顶部 Logo + “Ismosi Weekly” 标题；编号 + 标题 + 创建日期），右侧内容白底（左上角编辑按钮 + 篇内搜索、右上角编辑日期）。侧栏默认宽 170px，可拖动右边框调整（localStorage 持久化）；可折叠（标题行 « 按钮 / 左缘把手展开），编辑页进入编辑自动折叠、保存或取消回到阅读自动展开。文章下方链接组（上一篇 = 更新的一篇、下一篇 = 更旧的一篇、GitHub 链接，无边框链接样式）与欢迎交流（💪 👍 👀 彩色表情 + 全局计数，标题居上方），由 `PostFooter` 提供，展示页与编辑页阅读视图共用。
-- CI（`.github/workflows/node.js.yml`）跑 `npm ci` / `npm run build` / `npm test`：package-lock.json 必须提交；`src/generated/posts.json` 由 build 前置脚本生成，不提交。
+- 部署（`.github/workflows/deploy.yml`）：push 到 main 时跑 `npm ci` / `npm run build` / `npm test`，通过后把 `dist/` 发布到 GitHub Pages；仓库设置里 Pages 来源需选「GitHub Actions」。package-lock.json 必须提交；`src/generated/posts.json` 由 build 前置脚本生成，不提交。
 - Node >= 18。
 
 ## 测试
