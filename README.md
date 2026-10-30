@@ -1,6 +1,6 @@
 # [ismosi-weekly](https://pigsty-weekly.github.io)
 
-> [技术周刊](ismosi.github.io/ismosi-weekly)：记录在产品领域、AI 领域、技术领域、数字生活里的探索。
+> [技术周刊](https://ismosi.github.io/ismosi-weekly/)：记录在产品领域、AI 领域、技术领域、数字生活里的探索。
 > 每周（或每两周）一期，编号连续，标题指向具体内容。
 
 基于 Vite + React 的博客系统：本地写作，推送到 GitHub 后由 Actions 构建并发布到 GitHub Pages。
