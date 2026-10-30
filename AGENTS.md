@@ -22,6 +22,7 @@
 - **展示页**：`index.html` + `src/viewer/`，只读浏览 + 搜索。数据来自构建时生成的 JSON。
 - **互动计数**：文章下方「加油/点赞/小眼睛」用 Abacus 免费计数服务（https://abacus.jasoncameron.dev），封装在 `src/shared/abacus.js`。命名空间 `ismosi-weekly`，键 `post-{id}-cheer|like|eye`（键名仅允许字母数字与 `-_ .`，不能用冒号），全局共享、只增不减；请求失败显示占位符 –，不阻塞阅读。
 - **编辑页**：`edit.html` + `src/editor/`，仅本地。`vite.config.js` 的 build input 只有 index.html，所以编辑页永远不会进入部署产物。
+- **字体**：全站正文使用仓耳今楷（`TsangerJinKai02`）楷体网页字体，与 weekly.tw93.fun 一致。`public/fonts/jinkai.css` 定义 97 个 `unicode-range` 子集 woff2（托管在阿里 CDN `gw.alipayobjects.com`，按需下载），由 `index.html` / `edit.html` 异步 `<link>` 加载（`onload` 换 `rel=stylesheet`，`font-display: swap` 不阻塞首屏）。字体栈在 `src/styles.css` 的 `--font-body`，代码块仍用 `--font-mono`；CDN 失败时回退本机楷体（STKaiti/KaiTi）再回退系统字体。
 - **共用层** `src/shared/`：frontmatter.js、posts.js（仅 Node，勿在前端导入）、date.js、Markdown.jsx、PostList.jsx、icons.jsx、SiteHeader.jsx（侧栏顶部 Logo + 标题）、PostFooter.jsx（链接组 + 欢迎交流计数）、ContentSearch.jsx（篇内搜索：高亮 + 上/下一个）、useSidebar.js（侧栏宽度拖拽与折叠，宽度存 localStorage）。Logo 资产在 `src/assets/logo.png`（源自根目录 `images/logo.png`，改动请同步复制）。
 
 ## 约定
