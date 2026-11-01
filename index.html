@@ -6,8 +6,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>" />
     <title>博客</title>
     <!-- 仓耳今楷网页字体（按 unicode-range 分包按需加载，font-display: swap 不阻塞首屏） -->
-    <link rel="preload" href="/fonts/jinkai.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="/fonts/jinkai.css"></noscript>
+    <!-- 相对路径适配 Pages 子路径部署（404.html 深链回退页由构建时注入 <base> 保证可达） -->
+    <link rel="preload" href="./fonts/jinkai.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="./fonts/jinkai.css"></noscript>
   </head>
   <body>
     <div id="root"></div>

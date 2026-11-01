@@ -19,4 +19,15 @@ export default {
       data => data.post,
     ),
   remove: id => request(`/api/posts/${id}`, { method: 'DELETE' }),
+  /** 上传图片（请求体为图片二进制），返回可插入 Markdown 的 /images/... 地址 */
+  uploadImage: async file => {
+    const res = await fetch('/api/images', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || `图片上传失败（${res.status}）`)
+    return data.url
+  },
 }

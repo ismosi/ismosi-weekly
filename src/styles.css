@@ -577,7 +577,24 @@ mark.search-hit.current {
 .editor-toolbar {
   display: flex;
   gap: 4px;
+  align-items: center;
   border-bottom: 1px solid var(--border);
+}
+
+/* 粘贴图片上传中的提示 */
+.upload-hint {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 编辑区内的错误提示（如图片上传失败） */
+.editor-error {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--danger-weak);
+  color: var(--danger);
+  font-size: 13px;
 }
 
 .tab {

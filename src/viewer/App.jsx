@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import posts from '../generated/posts.json'
 import SiteHeader from '../shared/SiteHeader.jsx'
 import PostList from '../shared/PostList.jsx'
@@ -6,13 +6,16 @@ import Markdown from '../shared/Markdown.jsx'
 import PostFooter from '../shared/PostFooter.jsx'
 import ContentSearch from '../shared/ContentSearch.jsx'
 import { useSidebar } from '../shared/useSidebar.js'
+import { editHref, parseEditRoute } from '../shared/route.js'
 import { formatDateTime } from '../shared/date.js'
 import { ChevronRightIcon, SearchIcon } from '../shared/icons.jsx'
 
 /** 展示页：只读浏览 + 搜索（列表筛选 + 篇内搜索） */
 export default function App() {
   const [search, setSearch] = useState('')
-  const [selectedId, setSelectedId] = useState(posts[0]?.id ?? null)
+  // 地址栏路由 /edit/{id}：本地编辑页与线上 404 回退页共用同一套路径规则
+  const [route, setRoute] = useState(() => parseEditRoute(window.location.pathname))
+  const [selectedId, setSelectedId] = useState(route?.id ?? posts[0]?.id ?? null)
   const { width, collapsed, setCollapsed, startResize } = useSidebar()
   const articleRef = useRef(null)
 
@@ -24,7 +27,28 @@ export default function App() {
     )
   }, [search])
 
+  // 浏览器前进/后退：按新地址重新选中
+  useEffect(() => {
+    const onPopState = () => {
+      const next = parseEditRoute(window.location.pathname)
+      setRoute(next)
+      if (next?.id != null) setSelectedId(next.id)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  /** 选中一篇博客并同步地址到 /edit/{id}（列表点击、底部上一篇/下一篇共用） */
+  const navigate = useCallback(id => {
+    setSelectedId(id)
+    setRoute({ id })
+    const href = editHref(window.location.pathname, id)
+    if (window.location.pathname !== href) history.pushState(null, '', href)
+  }, [])
+
   const selected = visible.find(post => post.id === selectedId) ?? visible[0] ?? null
+  // 深链编号不存在时给出提示，而不是悄悄回落到第一篇
+  const notFoundId = route?.id != null && !posts.some(post => post.id === route.id) ? route.id : null
 
   return (
     <div className="app">
@@ -47,7 +71,7 @@ export default function App() {
               />
             </div>
           </div>
-          <PostList posts={visible} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+          <PostList posts={visible} selectedId={selected?.id ?? null} onSelect={navigate} />
         </div>
       </aside>
       {!collapsed && <div className="sidebar-resizer" title="拖动调整列表宽度" onMouseDown={startResize} />}
@@ -62,7 +86,9 @@ export default function App() {
         </button>
       )}
       <main className="content-pane">
-        {selected ? (
+        {notFoundId ? (
+          <div className="empty">博客 #{notFoundId} 不存在</div>
+        ) : selected ? (
           <article ref={articleRef} className="content-inner">
             <header className="content-header">
               <div className="header-left">
@@ -73,7 +99,7 @@ export default function App() {
             </header>
             <h1 className="content-title">{selected.title}</h1>
             <Markdown text={selected.content} />
-            <PostFooter posts={posts} postId={selected.id} onNavigate={setSelectedId} />
+            <PostFooter posts={posts} postId={selected.id} onNavigate={navigate} />
           </article>
         ) : (
           <div className="empty">
