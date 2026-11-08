@@ -5,7 +5,6 @@
  * id: 1
  * title: 标题
  * createdAt: 2026-08-17T10:00:00.000Z
- * updatedAt: 2026-08-17T10:00:00.000Z
  * ---
  * 正文（Markdown）
  *
@@ -44,12 +43,10 @@ function normalizePost(data, body, source) {
   const title = String(data.title ?? '').trim()
   if (!title) throw new Error(`${source}：title 不能为空`)
   if (!isDate(data.createdAt)) throw new Error(`${source}：createdAt 不是合法的时间`)
-  if (!isDate(data.updatedAt)) throw new Error(`${source}：updatedAt 不是合法的时间`)
   return {
     id,
     title,
     createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
     content: body.replace(/^\n+/, '').replace(/\s+$/, ''),
   }
 }
@@ -59,7 +56,7 @@ function isDate(value) {
 }
 
 export function serializePost(post) {
-  const header = ['id', 'title', 'createdAt', 'updatedAt']
+  const header = ['id', 'title', 'createdAt']
     .map(key => `${key}: ${post[key]}`)
     .join('\n')
   return `---\n${header}\n---\n\n${String(post.content ?? '').trim()}\n`

@@ -16,9 +16,9 @@
 
 ## 架构
 
-- **存储**：`content/0001.md`，frontmatter（id/title/createdAt/updatedAt）+ Markdown 正文。解析与序列化在 `src/shared/frontmatter.js`，无 YAML 依赖。
+- **存储**：`content/0001.md`，frontmatter（id/title/createdAt）+ Markdown 正文。解析与序列化在 `src/shared/frontmatter.js`，无 YAML 依赖；不记录编辑时间（updatedAt 已废弃，解析时多余字段被忽略，兼容旧文件）。
 - **本地编辑服务** `scripts/edit-server.mjs`：单端口方案。`/api/*` 提供博客 CRUD（GET/POST/PUT/DELETE `/api/posts`）与图片上传（POST `/api/images`：校验 image/* 与文件魔数，≤10MB，存 `public/images/时间戳-随机.ext`）；本地 `/images/*` 由该服务直接读盘返回（Vite 静态中间件启动时缓存文件清单，运行中新上传的图片会 404），其余请求交给 Vite dev（middlewareMode + appType mpa，HMR 走同一 httpServer）。
-- **博客路由 `/edit/{id}`**：每篇博客的唯一路径，解析/拼接在 `src/shared/route.js`（纯函数，`tests/route.test.mjs` 覆盖）。本地编辑服务对 `/edit`、`/edit/new`、`/edit/{id}` 都直接返回 `edit.html`（`npm run dev` 直跑 Vite 时由 vite.config.js 里的 edit-page-fallback 插件兕底）；编辑页与展示页在选中/新增/保存/删除时用 `history.pushState` 同步地址，popstate 支持前进后退。`/edit/{id}` 在本地是阅读视图（点「编辑」才进编辑态），线上 Pages 由 404.html 回退到展示页、仅只读；404.html 注入的脚本与 `edit.html` 里的 `<base href="/">` 把相对路径基准指回站点根，深层路径下 `./assets/*`、`./images/*` 才能正确加载。
+- **博客路由 `/edit/{id}`**：每篇博客的唯一路径，解析/拼接在 `src/shared/route.js`（纯函数，`tests/route.test.mjs` 覆盖）。本地编辑服务对 `/edit`、`/edit/new`、`/edit/{id}` 都返回经 `vite.transformIndexHtml()` 转换后的 `edit.html`（必须转换以注入 React 热刷新前导脚本，否则 @vitejs/plugin-react 报 "can't detect preamble"、编辑页白屏；`npm run dev` 直跑 Vite 时由 vite.config.js 里的 edit-page-fallback 插件兕底）；编辑页与展示页在选中/新增/保存/删除时用 `history.pushState` 同步地址，popstate 支持前进后退。`/edit/{id}` 在本地是阅读视图（点「编辑」才进编辑态），线上 Pages 由 404.html 回退到展示页、仅只读；404.html 注入的脚本与 `edit.html` 里的 `<base href="/">` 把相对路径基准指回站点根，深层路径下 `./assets/*`、`./images/*` 才能正确加载。
 - **构建** `scripts/build-content.mjs`：扫描 `content/`，生成 `src/generated/posts.json`（含全文，供展示页搜索；构建产物，已在 .gitignore 中）。
 - **展示页**：`index.html` + `src/viewer/`，只读浏览 + 搜索，支持 `/edit/{id}` 深链只读访问。数据来自构建时生成的 JSON。
 - **互动计数**：文章下方「加油/点赞/小眼睛」用 Abacus 免费计数服务（https://abacus.jasoncameron.dev），封装在 `src/shared/abacus.js`。命名空间 `ismosi-weekly`，键 `post-{id}-cheer|like|eye`（键名仅允许字母数字与 `-_ .`，不能用冒号），全局共享、只增不减；请求失败显示占位符 –，不阻塞阅读。
@@ -31,7 +31,7 @@
 
 - 编号自动递增：新博客编号 = 最大编号 + 1，从 1 开始，删除后不复用。
 - 列表按 createdAt 倒序；同一创建时间按编号倒序（最新在前）。
-- 布局：左侧博客列表（顶部 Logo + “Ismosi Weekly” 标题；编号 + 标题 + 创建日期），右侧内容白底（左上角编辑按钮 + 篇内搜索、右上角编辑日期）。侧栏默认宽 325px，可拖动右边框调整（localStorage 持久化，key 为 sidebar-width-v2；改默认宽度时需升级 key，避免旧存档覆盖新默认值）；可折叠（标题行 « 按钮 / 左缘把手展开），编辑页进入编辑自动折叠、保存或取消回到阅读自动展开，编辑途中手动展开不会被输入再次折叠。文章下方链接组（上一篇 = 更新的一篇、下一篇 = 更旧的一篇、GitHub 链接，无边框链接样式）与欢迎交流（💪 👍 👀 彩色表情 + 全局计数，标题居上方），由 `PostFooter` 提供，展示页与编辑页阅读视图共用。
+- 布局：左侧博客列表（顶部 Logo + “Ismosi Weekly” 标题；编号 + 标题 + 创建日期），右侧内容白底（左上角编辑按钮 + 篇内搜索、右上角创建日期「创建于 xx」）。侧栏默认宽 325px，可拖动右边框调整（localStorage 持久化，key 为 sidebar-width-v2；改默认宽度时需升级 key，避免旧存档覆盖新默认值）；可折叠（标题行 « 按钮 / 左缘把手展开），编辑页进入编辑自动折叠、保存或取消回到阅读自动展开，编辑途中手动展开不会被输入再次折叠。文章下方链接组（上一篇 = 更新的一篇、下一篇 = 更旧的一篇、GitHub 链接，无边框链接样式）与欢迎交流（💪 👍 👀 彩色表情 + 全局计数，标题居上方），由 `PostFooter` 提供，展示页与编辑页阅读视图共用。
 - 部署（`.github/workflows/deploy.yml`）：push 到 main 时跑 `npm ci` / `npm run build` / `npm test`，通过后把 `dist/` 发布到 GitHub Pages；仓库设置里 Pages 来源需选「GitHub Actions」。package-lock.json 必须提交；`src/generated/posts.json` 由 build 前置脚本生成，不提交。
 - Node >= 18。
 

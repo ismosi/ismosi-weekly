@@ -11,7 +11,6 @@ function makePost(id, createdAt, title = `第 ${id} 篇`) {
     id,
     title,
     createdAt,
-    updatedAt: createdAt,
     content: `# ${title}\n\n正文。`,
   }
 }

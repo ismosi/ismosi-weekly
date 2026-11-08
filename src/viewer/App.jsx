@@ -95,7 +95,7 @@ export default function App() {
                 <span className="post-id">#{selected.id}</span>
                 <ContentSearch key={selected.id} targetRef={articleRef} />
               </div>
-              <span className="edited-at">编辑于 {formatDateTime(selected.updatedAt)}</span>
+              <span className="created-at">创建于 {formatDateTime(selected.createdAt)}</span>
             </header>
             <h1 className="content-title">{selected.title}</h1>
             <Markdown text={selected.content} />

@@ -237,7 +237,7 @@ export default function App() {
   )
 }
 
-/** 阅读视图：左上角编辑按钮 + 篇内搜索，右上角显示编辑日期 */
+/** 阅读视图：左上角编辑按钮 + 篇内搜索，右上角显示创建日期 */
 function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
   const articleRef = useRef(null)
   return (
@@ -252,7 +252,7 @@ function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
               </button>
               <ContentSearch key={post.id} targetRef={articleRef} />
             </div>
-            <span className="edited-at">编辑于 {formatDateTime(post.updatedAt)}</span>
+            <span className="created-at">创建于 {formatDateTime(post.createdAt)}</span>
           </header>
           <h1 className="content-title">{post.title}</h1>
           <Markdown text={post.content} />

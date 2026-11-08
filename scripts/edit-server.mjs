@@ -130,7 +130,9 @@ const EDIT_PAGE_PATHNAME = /^\/edit(?:\/(?:new|\d+))?\/?$/
 /** /edit 的深层路径直接返回 edit.html，路径里的编号由前端解析（Vite 的 mpa 回退只认 /edit） */
 async function serveEditPage(req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, '不支持的请求方法')
-  const body = Buffer.from(await readFile(path.join(ROOT, 'edit.html'), 'utf8'))
+  const rawHtml = await readFile(path.join(ROOT, 'edit.html'), 'utf8')
+  // 必须经 Vite 转换注入 React 热刷新前导脚本，否则 @vitejs/plugin-react 报 "can't detect preamble"、编辑页白屏
+  const body = Buffer.from(await vite.transformIndexHtml(req.url, rawHtml))
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length })
   res.end(req.method === 'HEAD' ? undefined : body)
 }
@@ -185,7 +187,6 @@ async function handleApi(req, res) {
       id: nextPostId(posts),
       title: cleanTitle(body.title),
       createdAt: now,
-      updatedAt: now,
       content: cleanContent(body.content),
     }
     await writePostFile(post)
@@ -200,7 +201,6 @@ async function handleApi(req, res) {
       ...existing,
       title: cleanTitle(body.title),
       content: cleanContent(body.content),
-      updatedAt: new Date().toISOString(),
     }
     await writePostFile(post)
     return json(res, 200, { post })
