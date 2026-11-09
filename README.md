@@ -1,4 +1,4 @@
-# [ismosi-weekly](https://pigsty-weekly.github.io/edit/2)
+# [ismosi-weekly](https://ismosi.github.io/ismosi-weekly/edit/2)
 
 > [周刊](https://ismosi.github.io/ismosi-weekly/edit/2)：记录在产品、AI、技术、数字生活领域里的探索。
 > 每周（或每两周）一期，编号连续，标题指向具体内容。
