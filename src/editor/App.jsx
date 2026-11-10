@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api from './api.js'
+import { useAutosave } from './useAutosave.js'
+import { saveStatusText } from './saveStatus.js'
 import SiteHeader from '../shared/SiteHeader.jsx'
 import PostList from '../shared/PostList.jsx'
 import Markdown from '../shared/Markdown.jsx'
 import PostFooter from '../shared/PostFooter.jsx'
 import ContentSearch from '../shared/ContentSearch.jsx'
+import Toc from '../shared/Toc.jsx'
+import { extractToc, lineToOffset, scrollToHeading } from '../shared/toc.js'
 import { useSidebar } from '../shared/useSidebar.js'
 import { editHref, editIndexPathname, parseEditRoute } from '../shared/route.js'
 import { formatDateTime } from '../shared/date.js'
@@ -12,7 +16,7 @@ import { ChevronRightIcon, EditIcon, PlusIcon, SearchIcon } from '../shared/icon
 
 const EMPTY_DRAFT = { id: null, title: '', content: '' }
 
-/** 编辑页：新增 / 编辑 / 删除 / 搜索，支持 Markdown 编辑与预览 */
+/** 编辑页：新增 / 编辑 / 删除 / 搜索，支持 Markdown 编辑与实时自动保存 */
 export default function App() {
   const [posts, setPosts] = useState([])
   // 地址栏路由：/edit/{id}（或 /edit/new），route 是 location.pathname 的镜像
@@ -34,7 +38,7 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [])
 
-  // 进入编辑时自动折叠列表；保存或取消回到阅读时自动展开。
+  // 进入编辑时自动折叠列表；退出编辑回到阅读时自动展开。
   // 只在编辑态切换时触发，编辑途中手动展开的列表不会被下一次输入重新折叠。
   const editing = draft !== null
   useEffect(() => {
@@ -83,9 +87,77 @@ export default function App() {
     if (window.location.pathname !== href) history.pushState(null, '', href)
   }, [])
 
+  /** 自动保存成功：新博客进列表并回填编号；已有博客原地更新列表 */
+  const handleSaved = useCallback((post, { created, sourceDraft }) => {
+    if (created) {
+      setPosts(prev => [post, ...prev]) // 新博客创建时间最新，排在最上
+      // 仅当前草稿仍是发起创建的那份时才回填编号，避免污染已切换的草稿
+      setDraft(prev =>
+        prev &&
+        prev.id === null &&
+        prev.title === sourceDraft.title &&
+        prev.content === sourceDraft.content
+          ? { ...prev, id: post.id }
+          : prev,
+      )
+      if (parseEditRoute(window.location.pathname)?.isNew) {
+        setSelectedId(post.id)
+        setRoute({ id: post.id })
+        // /edit/new 创建成功后，把地址替换为新博客的唯一路径
+        history.replaceState(null, '', editHref(window.location.pathname, post.id))
+      }
+    } else {
+      setPosts(prev => prev.map(item => (item.id === post.id ? post : item)))
+    }
+  }, [])
+
+  // 实时自动保存：输入停顿后落盘，退出编辑前由 flush 补存
+  // 注意：必须声明在下方 popstate useEffect 之前，否则依赖数组求值时 flush 尚未初始化（TDZ 报错白屏）
+  const [exiting, setExiting] = useState(false)
+  const { status: saveStatus, savedAt, flush } = useAutosave({ draft, onSaved: handleSaved })
+
+  /** 手动重试（状态栏点击）：尽力补存，失败保持 error 状态 */
+  const retrySave = useCallback(() => {
+    flush().catch(() => {})
+  }, [flush])
+
+  /** 退出编辑：先补存未落盘的修改（防丢字），再回到阅读视图并展开侧栏 */
+  const exitEdit = useCallback(async () => {
+    setExiting(true)
+    let result
+    try {
+      result = await flush()
+    } catch {
+      result = 'failed'
+    }
+    setExiting(false)
+    if (
+      result === 'empty-title' &&
+      !window.confirm('标题为空，暂未保存；退出后未保存的修改会丢失。确定退出吗？')
+    ) {
+      return
+    }
+    if (result === 'failed' && !window.confirm('自动保存失败，退出后未保存的修改会丢失。确定退出吗？')) {
+      return
+    }
+    setDraft(null)
+    // 从未创建过（标题一直为空）时地址仍是 /edit/new，回到进入新增前的地址
+    if (parseEditRoute(window.location.pathname)?.isNew) {
+      const fallback =
+        selectedId != null
+          ? editHref(window.location.pathname, selectedId)
+          : editIndexPathname(window.location.pathname)
+      const prevHref = lastHrefRef.current
+      const target = prevHref && prevHref !== window.location.pathname ? prevHref : fallback
+      history.replaceState(null, '', target)
+      setRoute(parseEditRoute(target))
+    }
+  }, [flush, selectedId])
+
   // 浏览器前进/后退：按新地址关闭编辑态并重新选中
   useEffect(() => {
     const onPopState = () => {
+      flush().catch(() => {}) // 尽力补存编辑中的未落盘修改；失败不打断前进后退
       setDraft(null)
       const next = parseEditRoute(window.location.pathname)
       setRoute(next)
@@ -94,36 +166,12 @@ export default function App() {
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [startCreate])
+  }, [flush, startCreate])
 
   // 直接打开 /edit/new 时进入新增状态（地址已就位，无需再改）
   useEffect(() => {
     if (parseEditRoute(window.location.pathname)?.isNew) startCreate()
   }, [startCreate])
-
-  const saveDraft = async () => {
-    if (!draft.title.trim()) {
-      setError('标题不能为空')
-      return
-    }
-    try {
-      if (draft.id === null) {
-        const post = await api.create(draft.title, draft.content)
-        setPosts(prev => [post, ...prev]) // 新博客创建时间最新，排在最上
-        setSelectedId(post.id)
-        setRoute({ id: post.id })
-        // /edit/new 保存成功后，把地址替换为新博客的唯一路径
-        history.replaceState(null, '', editHref(window.location.pathname, post.id))
-      } else {
-        const post = await api.update(draft.id, draft.title, draft.content)
-        setPosts(prev => prev.map(item => (item.id === post.id ? post : item)))
-      }
-      setError(null)
-      setDraft(null)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
 
   const remove = async post => {
     if (!window.confirm(`确定删除博客 #${post.id}「${post.title}」吗？\n文件会从 content/ 目录移除。`)) {
@@ -140,21 +188,6 @@ export default function App() {
       setError(null)
     } catch (err) {
       setError(err.message)
-    }
-  }
-
-  /** 取消编辑：若当前地址是 /edit/new，回到进入新增前的地址（直接打开时回到目录） */
-  const cancelDraft = () => {
-    setDraft(null)
-    if (parseEditRoute(window.location.pathname)?.isNew) {
-      const fallback =
-        selectedId != null
-          ? editHref(window.location.pathname, selectedId)
-          : editIndexPathname(window.location.pathname)
-      const prevHref = lastHrefRef.current
-      const target = prevHref && prevHref !== window.location.pathname ? prevHref : fallback
-      history.replaceState(null, '', target)
-      setRoute(parseEditRoute(target))
     }
   }
 
@@ -221,8 +254,11 @@ export default function App() {
           preview={preview}
           setPreview={setPreview}
           onChange={setDraft}
-          onSave={saveDraft}
-          onCancel={cancelDraft}
+          onExit={exitEdit}
+          exiting={exiting}
+          saveStatus={saveStatus}
+          savedAt={savedAt}
+          onRetry={retrySave}
         />
       ) : (
         <ContentPane
@@ -240,8 +276,11 @@ export default function App() {
 /** 阅读视图：左上角编辑按钮 + 篇内搜索，右上角显示创建日期 */
 function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
   const articleRef = useRef(null)
+  const toc = useMemo(() => (post ? extractToc(post.content) : []), [post])
+  const jumpToHeading = useCallback(item => scrollToHeading(articleRef.current, item.id), [])
   return (
     <main className="content-pane">
+      <Toc items={toc} onJump={jumpToHeading} />
       {post ? (
         <article ref={articleRef} className="content-inner">
           <header className="content-header">
@@ -265,11 +304,26 @@ function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
   )
 }
 
-/** 编辑视图：标题 + 编辑/预览切换 + 保存/取消；支持粘贴图片自动上传并插入 */
-function EditorPane({ draft, preview, setPreview, onChange, onSave, onCancel }) {
+/** 编辑视图：标题 + 编辑/预览切换，输入停顿后自动保存（退出时自动补存）；支持粘贴图片自动上传并插入 */
+function EditorPane({ draft, preview, setPreview, onChange, onExit, exiting, saveStatus, savedAt, onRetry }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const textareaRef = useRef(null)
+  const previewRef = useRef(null)
+  const toc = useMemo(() => extractToc(draft.content), [draft.content])
+
+  /** 预览态平滑滚动到标题；编辑态把光标定位到标题行（聚焦后浏览器自动滚到光标处） */
+  const jumpToHeading = item => {
+    if (preview) {
+      scrollToHeading(previewRef.current, item.id)
+      return
+    }
+    const el = textareaRef.current
+    if (!el) return
+    const offset = lineToOffset(draft.content, item.line)
+    el.focus()
+    el.setSelectionRange(offset, offset)
+  }
 
   /** 在光标处插入文本。onChange 即 setDraft，用函数式更新，避免覆盖上传期间的其他修改 */
   const insertAtCursor = text => {
@@ -311,6 +365,7 @@ function EditorPane({ draft, preview, setPreview, onChange, onSave, onCancel }) 
 
   return (
     <main className="content-pane">
+      <Toc items={toc} onJump={jumpToHeading} />
       <div className="editor-inner">
         <div>
           <label className="field-label" htmlFor="post-title">
@@ -345,7 +400,7 @@ function EditorPane({ draft, preview, setPreview, onChange, onSave, onCancel }) 
         </div>
         {uploadError && <div className="editor-error">{uploadError}</div>}
         {preview ? (
-          <div className="preview-box">
+          <div ref={previewRef} className="preview-box">
             <Markdown text={draft.content} />
           </div>
         ) : (
@@ -360,12 +415,16 @@ function EditorPane({ draft, preview, setPreview, onChange, onSave, onCancel }) 
           />
         )}
         <footer className="editor-footer">
-          <button type="button" className="btn" onClick={onCancel}>
-            取消
+          <button type="button" className="btn" onClick={onExit} disabled={exiting}>
+            {exiting ? '退出中…' : '退出'}
           </button>
-          <button type="button" className="btn btn-primary" onClick={onSave}>
-            保存
-          </button>
+          <span
+            className={`save-status is-${saveStatus}`}
+            onClick={saveStatus === 'error' ? onRetry : undefined}
+            title={saveStatus === 'error' ? '点击立即重试' : undefined}
+          >
+            {saveStatusText(saveStatus, savedAt)}
+          </span>
         </footer>
       </div>
     </main>

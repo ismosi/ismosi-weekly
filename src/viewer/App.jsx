@@ -5,6 +5,8 @@ import PostList from '../shared/PostList.jsx'
 import Markdown from '../shared/Markdown.jsx'
 import PostFooter from '../shared/PostFooter.jsx'
 import ContentSearch from '../shared/ContentSearch.jsx'
+import Toc from '../shared/Toc.jsx'
+import { extractToc, scrollToHeading } from '../shared/toc.js'
 import { useSidebar } from '../shared/useSidebar.js'
 import { editHref, parseEditRoute } from '../shared/route.js'
 import { formatDateTime } from '../shared/date.js'
@@ -49,6 +51,8 @@ export default function App() {
   const selected = visible.find(post => post.id === selectedId) ?? visible[0] ?? null
   // 深链编号不存在时给出提示，而不是悄悄回落到第一篇
   const notFoundId = route?.id != null && !posts.some(post => post.id === route.id) ? route.id : null
+  const toc = useMemo(() => (selected ? extractToc(selected.content) : []), [selected])
+  const jumpToHeading = useCallback(item => scrollToHeading(articleRef.current, item.id), [])
 
   return (
     <div className="app">
@@ -86,6 +90,7 @@ export default function App() {
         </button>
       )}
       <main className="content-pane">
+        <Toc items={toc} onJump={jumpToHeading} />
         {notFoundId ? (
           <div className="empty">博客 #{notFoundId} 不存在</div>
         ) : selected ? (
