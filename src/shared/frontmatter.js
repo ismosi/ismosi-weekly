@@ -5,9 +5,11 @@
  * id: 1
  * title: 标题
  * createdAt: 2026-08-17T10:00:00.000Z
+ * updatedAt: 2026-08-18T12:30:00.000Z
  * ---
  * 正文（Markdown）
  *
+ * updatedAt 为可选行：最近一次编辑落盘时间，未编辑过的博客（含旧文件）没有这一行。
  * 解析与序列化互相配套，只支持简单的「键: 值」行，不引入 YAML 依赖。
  */
 
@@ -43,10 +45,13 @@ function normalizePost(data, body, source) {
   const title = String(data.title ?? '').trim()
   if (!title) throw new Error(`${source}：title 不能为空`)
   if (!isDate(data.createdAt)) throw new Error(`${source}：createdAt 不是合法的时间`)
+  // updatedAt 可选：缺失（从未编辑过）或非法值时忽略为 null，不阻塞解析
+  const updatedAt = isDate(data.updatedAt) ? data.updatedAt : null
   return {
     id,
     title,
     createdAt: data.createdAt,
+    updatedAt,
     content: body.replace(/^\n+/, '').replace(/\s+$/, ''),
   }
 }
@@ -56,7 +61,9 @@ function isDate(value) {
 }
 
 export function serializePost(post) {
-  const header = ['id', 'title', 'createdAt']
+  const keys = ['id', 'title', 'createdAt']
+  if (post.updatedAt) keys.push('updatedAt') // 可选字段：未编辑过不写，保持与旧文件一致
+  const header = keys
     .map(key => `${key}: ${post[key]}`)
     .join('\n')
   return `---\n${header}\n---\n\n${String(post.content ?? '').trim()}\n`

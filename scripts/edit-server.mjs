@@ -201,6 +201,8 @@ async function handleApi(req, res) {
       ...existing,
       title: cleanTitle(body.title),
       content: cleanContent(body.content),
+      // 最近一次编辑落盘时间：仅在更新时刷新；新建时不写，从未编辑过的博客不显示编辑时间
+      updatedAt: new Date().toISOString(),
     }
     await writePostFile(post)
     return json(res, 200, { post })

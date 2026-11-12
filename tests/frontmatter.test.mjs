@@ -6,6 +6,7 @@ const sample = {
   id: 3,
   title: '标题：带冒号',
   createdAt: '2026-08-16T02:03:04.000Z',
+  updatedAt: null,
   content: '## 小标题\n\n正文 **加粗**。',
 }
 
@@ -28,17 +29,18 @@ test('解析标准博客文件', () => {
     id: 1,
     title: '第一篇',
     createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: null,
     content: '你好，世界。',
   })
 })
 
-test('多余字段被忽略（兼容含 updatedAt 的旧文件）', () => {
+test('解析编辑时间 updatedAt；未编辑过的旧文件缺失时为 null', () => {
   const raw = [
     '---',
     'id: 1',
     'title: 第一篇',
     'createdAt: 2026-08-01T00:00:00.000Z',
-    'updatedAt: 2026-08-02T00:00:00.000Z',
+    'updatedAt: 2026-08-02T03:04:05.000Z',
     '---',
     '',
     '你好，世界。',
@@ -47,8 +49,53 @@ test('多余字段被忽略（兼容含 updatedAt 的旧文件）', () => {
     id: 1,
     title: '第一篇',
     createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-02T03:04:05.000Z',
     content: '你好，世界。',
   })
+
+  const legacy = [
+    '---',
+    'id: 2',
+    'title: 从未编辑过',
+    'createdAt: 2026-08-01T00:00:00.000Z',
+    '---',
+    '',
+    '你好，世界。',
+  ].join('\n')
+  assert.equal(parsePostFile(legacy).updatedAt, null)
+})
+
+test('updatedAt 非法时忽略为 null，不阻塞解析', () => {
+  const raw = '---\nid: 1\ntitle: t\ncreatedAt: 2026-08-01T00:00:00.000Z\nupdatedAt: 不是时间\n---\n\n正文'
+  assert.equal(parsePostFile(raw).updatedAt, null)
+})
+
+test('未知字段被忽略（兼容旧文件多余行）', () => {
+  const raw = [
+    '---',
+    'id: 1',
+    'title: 第一篇',
+    'createdAt: 2026-08-01T00:00:00.000Z',
+    'slug: hello',
+    '---',
+    '',
+    '你好，世界。',
+  ].join('\n')
+  assert.deepEqual(parsePostFile(raw), {
+    id: 1,
+    title: '第一篇',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: null,
+    content: '你好，世界。',
+  })
+})
+
+test('序列化：未编辑过不写 updatedAt，编辑过则往返一致', () => {
+  const untouched = { id: 1, title: 't', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: null, content: '正文' }
+  assert.ok(!serializePost(untouched).includes('updatedAt'))
+
+  const edited = { id: 1, title: 't', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-02T03:04:05.000Z', content: '正文' }
+  assert.deepEqual(parsePostFile(serializePost(edited)), edited)
 })
 
 test('缺少 frontmatter 时报错', () => {

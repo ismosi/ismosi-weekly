@@ -318,7 +318,16 @@ body.resizing * {
   border-bottom: 1px solid var(--border);
 }
 
-.created-at {
+/* 右上角创建/编辑时间：纵向堆叠、右对齐；未编辑过的博客只有创建时间一行 */
+.post-times {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.created-at,
+.edited-at {
   font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
@@ -447,6 +456,40 @@ mark.search-hit.current {
 /* 悬停与当前点击选中的条目共用同一套蓝色高亮 */
 .toc-item:hover,
 .toc-item.active {
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+
+/* 目录条目行：作为父目录折叠箭头的定位基准 */
+.toc-list li {
+  position: relative;
+}
+
+/* 父目录左侧的折叠箭头：悬停所在行时浮现、移开消失；
+   箭头只属于被悬停的行本身，悬停父目录不会让子目录显示箭头 */
+.toc-caret {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.toc-list li:hover > .toc-caret {
+  opacity: 1;
+}
+
+.toc-caret:hover {
   color: var(--accent);
   background: var(--accent-weak);
 }

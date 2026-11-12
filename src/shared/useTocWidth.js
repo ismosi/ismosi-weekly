@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
-// key 带 v2：默认宽度改为 156 时升级 key，避免旧存档宽度覆盖新默认值
-const STORAGE_KEY = 'toc-width-v2'
-const DEFAULT_WIDTH = 156
-const MIN_WIDTH = 140
-const MAX_WIDTH = 400
+// key 带 v3：默认宽度随折叠图标预留宽度 +16px 时升级 key，避免旧存档宽度覆盖新默认值
+const STORAGE_KEY = 'toc-width-v3'
+const DEFAULT_WIDTH = 172
+const MIN_WIDTH = 156
+const MAX_WIDTH = 416
 
 function clampWidth(value) {
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)))

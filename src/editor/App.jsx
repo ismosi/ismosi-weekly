@@ -273,7 +273,7 @@ export default function App() {
   )
 }
 
-/** 阅读视图：左上角编辑按钮 + 篇内搜索，右上角显示创建日期 */
+/** 阅读视图：左上角编辑按钮 + 篇内搜索，右上角显示创建/编辑日期 */
 function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
   const articleRef = useRef(null)
   const toc = useMemo(() => (post ? extractToc(post.content) : []), [post])
@@ -291,7 +291,12 @@ function ContentPane({ post, posts, onEdit, onNavigate, emptyText }) {
               </button>
               <ContentSearch key={post.id} targetRef={articleRef} />
             </div>
-            <span className="created-at">创建于 {formatDateTime(post.createdAt)}</span>
+            <div className="post-times">
+              <span className="created-at">创建于 {formatDateTime(post.createdAt)}</span>
+              {post.updatedAt && (
+                <span className="edited-at">编辑于 {formatDateTime(post.updatedAt)}</span>
+              )}
+            </div>
           </header>
           <h1 className="content-title">{post.title}</h1>
           <Markdown text={post.content} />

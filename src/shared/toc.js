@@ -24,6 +24,39 @@ export function extractToc(text) {
   return items
 }
 
+/**
+ * 把扁平标题数组组装成目录树：[{ ...item, children }]
+ * 相邻更深层级的标题挂到最近的上级标题下，层级跳级（如 ## 后直接 ####）按深度就近挂靠；
+ * 「父目录」即 children 非空的节点，折叠父目录时整个子树一起隐藏，
+ * 各节点自身的折叠状态由 Toc 按 id 记忆，互不重置。
+ */
+export function buildTocTree(items) {
+  const root = { children: [] }
+  const stack = [root]
+  for (const item of items) {
+    while (stack.length > 1 && stack.at(-1).level >= item.level) stack.pop()
+    const node = { ...item, children: [] }
+    stack.at(-1).children.push(node)
+    stack.push(node)
+  }
+  return root.children
+}
+
+/**
+ * 按折叠状态展平目录树：collapsedIds 中 id 对应节点的整个子树不出现，
+ * 其余节点连同各自已展开的后代按原顺序输出；
+ * 返回 [{ ...node, depth }]，depth 为相对顶层标题的嵌套深度（0 起），供缩进与字号使用。
+ */
+export function flattenTocTree(nodes, collapsedIds, depth = 0, out = []) {
+  for (const node of nodes) {
+    out.push({ ...node, depth })
+    if (node.children.length > 0 && !collapsedIds.has(node.id)) {
+      flattenTocTree(node.children, collapsedIds, depth + 1, out)
+    }
+  }
+  return out
+}
+
 /** 在容器内平滑滚动到锚点 id 对应的标题（阅读视图与预览视图共用） */
 export function scrollToHeading(container, id) {
   container
